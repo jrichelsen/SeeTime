@@ -1,0 +1,55 @@
+<html>
+<head>
+<title>See Time API and Web Interface</title>
+</head>
+<body>
+<h1>See Time API and Web Interface</h1>
+
+<h3>Team Members</h3>
+<ul>
+<li><strong>Buck Bourdon</strong> (<a href="bbourdon@nd.edu">bbourdon@nd.edu</a>)</li>
+<li><strong>Edwin Onattu</strong> (<a href="eonattu@nd.edu">eonattu@nd.edu</a>)</li>
+<li><strong>Jon Richelsen</strong> (<a href="jrichels@nd.edu">jrichels@nd.edu</a>)</li>
+<li><strong>Owen Zidar</strong> (<a href="ozidar@nd.edu">ozidar@nd.edu</a>)</li>
+</ul>
+
+<h3><a href="devplan.html">Development Plan</a></h3>
+
+<h3>Application Domain</h3>
+See Time is a calendar-based application for people who have difficulties telling time (e.g. those with mental disabilities, young children, or people suffering from Alzheimers) that utilizes images and progress bars. We intend to add increased functionality to the preexisting See Time mobile app by allowing users to access and manage their events/calendars from multiple devices and a web front-end. Users will be able to create a See Time account. By doing so, they will be able to create and share calendars with other account holders. Each calendar entity will contain events which will be editable by all users who have access to the calendar.<br?
+<br>
+<a href="https://itunes.apple.com/us/app/see-time-visual-calendar/id926156543">See Time - Visual Calendar on App Store</a>
+
+<h3>Usefulness</h3>
+Creating user accounts will enable the account owners to manage their students' or childrens' events from a remote device. From feedback, this would be an invaluable feature as a majority of the guardians/teachers (potential See Time account owners) currently need to procure the end users' (children, disabled 
+students, etc.) device and manually manage their events. While there are a myriad of calendar-based applications, as well apps that utilize progress bars, none of them utilize both and are specifically designed for people who cannot undetstand time. The application already has a respectable user base and is quickly growing. 
+
+<h3>Realness</h3>
+See Time is a preexisting mobile app and already has a user base across 5 different countries. The current users who decide to create accounts will utilize 
+our database. Any time a user with an account is logged in, whether it be on a mobile device or a web page, and creates/edits/deletes a calendar entity or 
+event, the database will be updated. Our hope is to have an updated See Time mobile version released and fully functional, but that is subject to a (usually)
+length AppStore review phase. In the event that our updated See Time mobile version isn't released, we'll puruse a beta testing phase in which we distribute
+the new version the app to friends and colleagues here at Notre Dame. 
+
+<h3>Basic Functionality</h3>
+<ul>
+<li><strong>Insert</strong> - Users will be able create "calendars" and "events" which will be inserted into the database and accessible from any device in which the user is logged on.</li>
+<li><strong>Update</strong> - Events will editable which will require updates to event instances in the database. </li>
+<li><strong>Delete</strong> - Events will also be deletable, of course, which will delete instances in the database. </li>
+<li><strong>Search</strong> - The web front end will incorporate a search feature which will allow users to search the database for events matching multiple criteria.</li>
+</ul>
+
+<h3>Advanced Functions</h3>
+<ul>
+<li><strong>User Credentials and Password Encryption</strong> - One of our added features will be user account support. However, all legitimate account-based applications incorporate modern password encryption and security techniques. As such, we will do so as well by implementing salted password hashing.
+<li><strong>Mobile Device Event Caching</strong> - Because we want this project to complement the See Time mobile application, there will be numerous network-related considerations to handle. Perhaps the most difficult being handling on-device event caching and synchronization when the user is not able to access a data connection. It's possible that a user simply doesn't have cell service or that they're using an iPod/iPad with no WiFi signal. In that event, users should still be able to use See Time on their mobile device, but we will need to ensure events are cached locally until a data connection is established and then that any inconsistencies in the events associated with an account (remember users can share calendars and events) are synchronized appropriately. </li>
+</ul>
+
+<h3>ER Diagram</h3>
+<a href="https://drive.google.com/file/d/0B87AMT2bwN_PZWIwalI0R1VMZlE/view?usp=sharing">Link</a>
+
+<h4>System URL</h4>
+<a href="http://dsg1.crc.nd.edu/cse30246/nojon">Link</a>
+
+</body>
+</html>

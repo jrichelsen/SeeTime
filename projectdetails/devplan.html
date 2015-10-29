@@ -1,0 +1,54 @@
+<html>
+<head>
+<title>Development Plan - See Time API and Web Interface</title>
+</head>
+<body>
+<h1>Development Plan</h1>
+
+<h3>Relational Schema</h3>
+Event(<u>Event ID</u>, Calendar ID, Duration, Image, Title, Details, Priority, Alert, Repition)<br>
+Calendar(<u>Calendar ID</u>, Owner ID, Name)<br>
+Membership(<u>Calendar ID</u>, <u>User ID</u>)<br>
+User(<u>Username</u>, Password Hash)<br>
+<strong>DO WE NEED TO EXPLICITLY SPECIFY FUNCTIONAL DEPENDENCIES?</strong>
+
+<h3>Runtime Environment</h3>
+We will be using the default environment provided:
+<ul>
+<li>Server: dsg1.crc.nd.edu</li>
+<li>Language: PHP</li>+
+<li>Database: MySQL</li>
+<li>API: REST</li>
+</ul>
+
+<h3>Data Sources</h3>
+Data will be created by real users. Users may create calendars and events from the See Time iOS mobile app or web app.
+
+<h3>Project Milestones</h3>
+<ol>
+<h4>Phase 1</h4>
+<li>16 OCT 2015 - Database created (schema and tables with mock data)</li>
+<li>30 OCT 2015 - API functional</li>
+<li>13 NOV 2015 - API authentication</li>
+<h4>Phase 2</h4>
+<li>27 NOV 2015 - Rudimentary website (no logins)</li>
+<li>11 DEC 2015 - Website authentication</li>
+<li>11 DEC 2015 - Mobile app integration</li>
+</ol>
+
+<h3>Labor Division</h3>
+<h4>Phase 1</h4>
+<li><strong>Buck Bourdon</strong>: Implementation</li>
+<li><strong>Edwin Onattu</strong>: Implementation</li>
+<li><strong>Jon Richelsen</strong>: Architecture/documentation</li>
+<li><strong>Owen Zidar</strong>: Implementation</li>
+<h4>Phase 2</h4>
+<li><strong>Buck Bourdon</strong>: Mobile app integration</li>
+<li><strong>Edwin Onattu</strong>: Website</li>
+<li><strong>Jon Richelsen</strong>: Website</li>
+<li><strong>Owen Zidar</strong>: Website</li>
+
+</body>
+</html>
+
+

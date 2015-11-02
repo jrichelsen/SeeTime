@@ -1,8 +1,5 @@
 <?php
 
-// error checking for prepare statements?
-// error checking for binding?
-
 /*
 Calendar:	bcal		ecal		jcal		ocal
 Admins:		bbourdan	eonattu		jrichels	ozidar
@@ -38,8 +35,12 @@ $users = array(
 	'ozidar' => 'opwd'
 );
 foreach ($users as $username => $pwd) {
-	$stmt = $conn->prepare('CALL create_person(?, ?)');
-	$stmt->bind_param('ss', $username, $pwd);
+	if (!$stmt = $conn->prepare('CALL create_person(?, ?)')) {
+		die("preparing CALL to create_person failed: ($conn->errno) $conn->error");
+	}
+	if (!$stmt->bind_param('ss', $username, $pwd)) {
+		die("binding CALL to create_person failed: ($stmt->errno) $stmt->error");
+	}
 	if (!$stmt->execute()) {
 		die("CALL to create_person failed: ($stmt->errno) $stmt->error");
 	}
@@ -57,8 +58,12 @@ $calendars = array(
 $calendar_ids = array();
 foreach ($calendars as $admin => $calendar_name) {
 	// create calendar
-	$stmt = $conn->prepare('CALL create_calendar(?, ?, @calendar_id)');
-	$stmt->bind_param('ss', $admin, $calendar_name);
+	if (!$stmt = $conn->prepare('CALL create_calendar(?, ?, @calendar_id)')) {
+		die("preparing CALL to create_calendar failed: ($conn->errno) $conn->error");
+	}
+	if (!$stmt->bind_param('ss', $admin, $calendar_name)) {
+		die("binding CALL to create_calendar failed: ($stmt->errno) $stmt->error");
+	}
 	if (!$conn->query("SET @calendar_id = NULL") | !$stmt->execute()) {
 		die("CALL to create_calendar failed: ($stmt->errno) $stmt->error");
 	}
@@ -80,8 +85,12 @@ $other_admins = array(
 );
 foreach ($other_admins as $calendar_name => $admins) {
 	foreach ($admins as $admin) {
-		$stmt = $conn->prepare('CALL add_admin(?, ?)');
-		$stmt->bind_param('ss', $admin, $calendar_ids[$calendar_name]);
+		if (!$stmt = $conn->prepare('CALL add_admin(?, ?)')) {
+			die("preparing CALL to add_admin failed: ($conn->errno) $conn->error");
+		}
+		if (!$stmt->bind_param('ss', $admin, $calendar_ids[$calendar_name])) {
+			die("binding CALL to add_admin failed: ($stmt->errno) $stmt->error");
+		}
 		if (!$stmt->execute()) {
 			die("CALL to add_admin failed: ($stmt->errno) $stmt->error");
 		}
@@ -99,8 +108,12 @@ $other_viewers = array(
 );
 foreach ($other_viewers as $calendar_name => $viewers) {
 	foreach ($viewers as $viewer) {
-		$stmt = $conn->prepare('CALL add_viewer(?, ?)');
-		$stmt->bind_param('ss', $viewer, $calendar_ids[$calendar_name]);
+		if (!$stmt = $conn->prepare('CALL add_viewer(?, ?)')) {
+			die("preparing CALL to add_viewer_person failed: ($conn->errno) $conn->error");
+		}
+		if (!$stmt->bind_param('ss', $viewer, $calendar_ids[$calendar_name])) {
+			die("binding CALL to add_viewer failed: ($stmt->errno) $stmt->error");
+		}
 		if (!$stmt->execute()) {
 			die("CALL to add_viewer failed: ($stmt->errno) $stmt->error");
 		}
@@ -119,8 +132,12 @@ $events = array(
 $event_ids = array();
 foreach ($events as $calendar_name => $event_names) {
 	foreach ($event_names as $event_name) {
-		$stmt = $conn->prepare("CALL create_event(?, ?, '2015-12-25 12:34:56', NULL, NULL, NULL, NULL, NULL, @event_id)");
-		$stmt->bind_param('ss', $calendar_ids[$calendar_name], $event_name);
+		if (!$stmt = $conn->prepare("CALL create_event(?, ?, '2015-12-25 12:34:56', NULL, NULL, NULL, NULL, NULL, @event_id)")) {
+			die("preparing CALL to create_event failed: ($conn->errno) $conn->error");
+		}
+		if (!$stmt->bind_param('ss', $calendar_ids[$calendar_name], $event_name)) {
+			die("binding CALL to create_event failed: ($stmt->errno) $stmt->error");
+		}
 		if (!$conn->query("SET @event_id = NULL") | !$stmt->execute()) {
 			die("CALL to create_event failed: ($stmt->errno) $stmt->error");
 		}

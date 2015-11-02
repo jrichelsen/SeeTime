@@ -8,7 +8,7 @@ CREATE TABLE persons (
 
 CREATE TABLE calendars (
 	calendar_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
-	name VARCHAR(127)
+	calendar_name VARCHAR(127)
 );
 
 CREATE TABLE members (
@@ -23,13 +23,12 @@ CREATE TABLE members (
 CREATE TABLE events (
 	event_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
 	calendar_id INT UNSIGNED NOT NULL,
-	title VARCHAR(63) NOT NULL,
+	event_title VARCHAR(63) NOT NULL,
 	start_date DATETIME NOT NULL,
 	duration INT,
-	image VARCHAR(63),
 	details VARCHAR(510),
-	priority VARCHAR(7),
-	repitition VARCHAR(7),
+	priority ENUM('low', 'medium', 'high'),
+	repetition ENUM('day', 'week', 'month', 'year'),
 	alert BOOL,
 	FOREIGN KEY(calendar_id) REFERENCES calendars(calendar_id)
 );
@@ -76,7 +75,7 @@ CREATE PROCEDURE create_calendar (
 	OUT out_calendar_id INT UNSIGNED
 ) 
 BEGIN 
-	INSERT INTO calendars (name)
+	INSERT INTO calendars (calendar_name)
 	VALUES (in_calendar_name);
 
 	SET out_calendar_id = LAST_INSERT_ID();
@@ -91,36 +90,33 @@ END$$
 
 CREATE PROCEDURE create_event (
 	IN in_calendar_id INT UNSIGNED,
-	IN in_title VARCHAR(63),
+	IN in_event_title VARCHAR(63),
 	IN in_start_date DATETIME,
 	IN in_duration INT,
-	IN in_image VARCHAR(63),
 	IN in_details VARCHAR(510),
-	IN in_priority VARCHAR(7),
-	IN in_repitition VARCHAR(7),
+	IN in_priority ENUM('low', 'medium', 'high'),
+	IN in_repetition ENUM('day', 'week', 'month', 'year'),
 	IN in_alert BOOL,
 	OUT out_event_id INT UNSIGNED
 ) 
 BEGIN 
 	INSERT INTO events (
 		calendar_id,
-		title,
+		event_title,
 		start_date,
 		duration,
-		image,
 		details,
 		priority,
-		repitition,
+		repetition,
 		alert)
 	VALUES (
 		in_calendar_id,
-		in_title,
+		in_event_title,
 		in_start_date,
 		in_duration,
-		in_image,
 		in_details,
 		in_priority,
-		in_repitition,
+		in_repetition,
 		in_alert
 	);
 

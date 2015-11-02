@@ -22,7 +22,7 @@ $conn = new mysqli(
 	'jon',
 	'ozidar');
 if ($conn->connect_errno) {
-    die('failed to connect to MySQL: (' . $conn->connect_errno . ') ' . $conn->connect_error);
+    die("failed to connect to MySQL: ($conn->connect_errno) $conn->connect_error");
 }
 echo("connected successfully\n");
 
@@ -34,11 +34,11 @@ $users = array(
 	'ozidar' => 'opwd'
 );
 foreach ($users as $username => $pwd) {
-	if (!$conn->query("CALL create_person('" .
-			$username . "','" .
-			$pwd . "')"
-		)) {
-		die('CALL to create_person failed: (' . $conn->errno . ') ' . $conn->error);
+	if (!$conn->query("CALL create_person(
+			'$username',
+			'$pwd'
+		)")) {
+		die("CALL to create_person failed: ($conn->errno) $conn->error");
 	}
 	echo("inserted user '" . $username . "'\n");
 }
@@ -55,19 +55,19 @@ $calendar_ids = array();
 foreach ($calendars as $admin => $calendar_name) {
 	// create calendar
 	if (!$conn->query("SET @calendar_id = NULL") |
-		!$conn->query("CALL create_calendar('" .
-			$admin . "','" .
-			$calendar_name . "',
-			@calendar_id)"
-		)) {
-		die('CALL to create_calendar failed: (' . $conn->errno . ') ' . $conn->error);
+		!$conn->query("CALL create_calendar(
+			'$admin',
+			'$calendar_name',
+			@calendar_id
+		)")) {
+		die("CALL to create_calendar failed: ($conn->errno) $conn->error");
 	}
 	// extract calendar ID for later user
 	if (!($res = $conn->query('SELECT @calendar_id'))) {
-		die("fetch of calendar_id failed: (" . $conn->errno . ") " . $conn->error);
+		die("fetch of calendar_id failed: ($conn->errno) $conn->error");
 	}
 	$calendar_ids[$calendar_name] = $res->fetch_assoc()['@calendar_id'];
-	echo("inserted calendar '" . $calendar_name . "' with admin " . $admin . ' and ID ' . $calendar_ids[$calendar_name] . "\n");
+	echo("inserted calendar '$calendar_name' with admin $admin and ID $calendar_ids[$calendar_name]\n");
 }
 echo("\n");
 
@@ -80,13 +80,13 @@ $other_admins = array(
 );
 foreach ($other_admins as $calendar_name => $admins) {
 	foreach ($admins as $admin) {
-		if (!$conn->query("CALL add_admin('" .
-				$admin . "','" .
-				$calendar_ids[$calendar_name] . "')"
-			)) {
-			die('CALL to add_admin failed: (' . $conn->errno . ') ' . $conn->error);
+		if (!$conn->query("CALL add_admin(
+				'$admin',
+				'$calendar_ids[$calendar_name]'
+			)")) {
+			die("CALL to add_admin failed: ($conn->errno) $conn->error");
 		}
-		echo('added ' . $admin . ' as admin of ' . $calendar_name . "\n");
+		echo("added $admin as admin of $calendar_name\n");
 	}
 }
 echo("\n");
@@ -100,13 +100,13 @@ $other_viewers = array(
 );
 foreach ($other_viewers as $calendar_name => $viewers) {
 	foreach ($viewers as $viewer) {
-		if (!$conn->query("CALL add_viewer('" .
-				$viewer . "','" .
-				$calendar_ids[$calendar_name] . "')"
-			)) {
-			die('CALL to add_viewer failed: (' . $conn->errno . ') ' . $conn->error);
+		if (!$conn->query("CALL add_viewer(
+				'$viewer',
+				'$calendar_ids[$calendar_name]'
+			)")) {
+			die("CALL to add_viewer failed: ($conn->errno) $conn->error");
 		}
-		echo('added ' . $viewer . ' as viewer of ' . $calendar_name . "\n");
+		echo("added $viewer as viewer of $calendar_name\n");
 	}
 }
 echo("\n");
@@ -121,24 +121,22 @@ $events = array(
 foreach ($events as $calendar_name => $event_names) {
 	foreach ($event_names as $event_name) {
 		if (!$conn->query("SET @event_id = NULL") |
-		!$conn->query("CALL create_event('" .
-			$calendar_ids[$calendar_name] . "','" .
-			$event_name . "',
+		!$conn->query("CALL create_event(
+			'$calendar_ids[$calendar_name]',
+			'$event_name',
 			'2015-12-25 12:34:56',
 			NULL,
 			NULL,
 			NULL,
 			NULL,
 			NULL,
-			NULL,
-			@event_id)"
-		)) {
-			die('CALL to create_event failed: (' . $conn->errno . ') ' . $conn->error);
+			@event_id
+		)")) {
+			die("CALL to create_event failed: ($conn->errno) $conn->error");
 		}
-		echo('added ' . $event_name . ' to ' . $calendar_name . "\n");
+		echo("added $event_name to $calendar_name\n");
 	}
 }
-echo("\n");
 
 mysqli_close($conn);
 

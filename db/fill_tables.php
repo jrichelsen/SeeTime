@@ -1,9 +1,5 @@
 <?php
-
 /*
-TODO:
-close statements?
-
 Calendar:	bcal			ecal					jcal					ocal
 Admins:		bbourdan		eonattu					jrichels				ozidar
 							jrichels										bbourdan
@@ -14,6 +10,9 @@ Events:		flare nostrils	office hours 1			software engineering	office hours
 			be annoying		office hours 2			beauty sleep			brush teeth
 							algorithms HW			meeting with 			listen to Edwin ramble
 							databases proj hours							watch football
+
+TODO:
+* investigate closing prepared statements
 */
 
 // connect to database
@@ -61,7 +60,7 @@ foreach ($calendars as $admin => $calendar_name) {
 	if ((!$result_calendar_id = $conn->query('SELECT @calendar_id')) |
 		(!$calendar_ids[$calendar_name] = $result_calendar_id->fetch_assoc()['@calendar_id'])
 	) {
-		die("error fetching calendar_id of calendar '$calendar_name':\n($stmt->errno) $stmt->error\n");
+		die("error fetching calendar_id of calendar '$calendar_name':\n($conn->errno) $conn->error\n");
 	}
 }
 
@@ -137,5 +136,4 @@ foreach ($events as $calendar_name => $event_tuples) {
 }
 
 $conn->close();
-
 ?>

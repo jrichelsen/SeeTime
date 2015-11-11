@@ -1,5 +1,9 @@
 USE ozidar;
 
+DROP PROCEDURE IF EXISTS create_event;
+DROP PROCEDURE IF EXISTS add_viewer;
+DROP PROCEDURE IF EXISTS add_admin;
+DROP PROCEDURE IF EXISTS get_calendar;
 DROP PROCEDURE IF EXISTS create_calendar;
 DROP PROCEDURE IF EXISTS get_calendars_roles;
 DROP PROCEDURE IF EXISTS delete_user;

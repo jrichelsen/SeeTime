@@ -63,7 +63,7 @@ CREATE FUNCTION username_regex (
 	in_username VARCHAR(15)
 )
 RETURNS BOOLEAN DETERMINISTIC BEGIN
-	RETURN(in_username REGEXP '^[[:alnum:]]{1,15}$');
+	RETURN(in_username REGEXP '^[[:alpha:]][[:alnum:]]{0,14}$');
 END$$
 
 CREATE FUNCTION pwd_regex (
@@ -120,7 +120,7 @@ CREATE TRIGGER users_insert BEFORE INSERT ON users FOR EACH ROW BEGIN
 	IF NOT username_regex(NEW.username) THEN
 		SIGNAL
 			SQLSTATE '45008'
-			SET MESSAGE_TEXT = 'username does not meet restrictions ^[[:alnum:]]{1,15}$';
+			SET MESSAGE_TEXT = 'username does not meet restrictions ^[[:alpha:]][[:alnum:]]{0,14}$';
 	END IF;
 END$$
 
@@ -316,7 +316,6 @@ CREATE PROCEDURE create_calendar (
 	OUT out_calendar_id INT UNSIGNED
 ) BEGIN
 	SET out_error_20 = FALSE;
-	SET out_calendar_id = NULL;
 	IF NOT user_exists(in_username) THEN
 		SET out_error_20 = TRUE;
 	ELSE
@@ -333,9 +332,75 @@ CREATE PROCEDURE create_calendar (
 		VALUES (
 			in_username,
 			out_calendar_id,
-			'admin'
+		'	admin'
 		);
 	END IF;
+END$$
+
+CREATE PROCEDURE add_admin (
+	IN in_username VARCHAR(15),
+	IN in_calendar_id INT UNSIGNED
+) BEGIN 
+	INSERT INTO members (
+		username,
+		calendar_id,
+		role
+	)
+	VALUES (
+		in_username,
+		in_calendar_id,
+		'admin'
+	);
+END$$
+
+CREATE PROCEDURE add_viewer (
+	IN in_username VARCHAR(15),
+	IN in_calendar_id INT UNSIGNED
+) BEGIN 
+	INSERT INTO members (
+		username,
+		calendar_id,
+		role
+	)
+	VALUES (
+		in_username,
+		in_calendar_id,
+		'viewer'
+	);
+END$$
+
+CREATE PROCEDURE create_event (
+	IN in_calendar_id INT UNSIGNED,
+	IN in_event_title VARCHAR(63),
+	IN in_start_date DATETIME,
+	IN in_duration INT UNSIGNED,
+	IN in_details VARCHAR(510),
+	IN in_priority ENUM('low', 'medium', 'high'),
+	IN in_repetition VARCHAR(5),
+	IN in_alert VARCHAR(5),
+	OUT out_event_id INT UNSIGNED
+) BEGIN 
+	INSERT INTO events (
+		calendar_id,
+		event_title,
+		start_date,
+		duration,
+		details,
+		priority,
+		repetition,
+		alert)
+	VALUES (
+		in_calendar_id,
+		in_event_title,
+		in_start_date,
+		in_duration,
+		in_details,
+		in_priority,
+		in_repetition,
+		in_alert
+	);
+
+	SET out_event_id = LAST_INSERT_ID();
 END$$
 
 DELIMITER ;

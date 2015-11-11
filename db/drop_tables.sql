@@ -1,21 +1,7 @@
 USE ozidar;
 
-DROP PROCEDURE IF EXISTS describe_event;
-DROP PROCEDURE IF EXISTS get_events;
-DROP PROCEDURE IF EXISTS get_role;
-DROP PROCEDURE IF EXISTS get_editable_calendars;
-DROP PROCEDURE IF EXISTS get_viewable_calendars;
-DROP PROCEDURE IF EXISTS downgrade_admin_to_viewer;
-DROP PROCEDURE IF EXISTS upgrade_viewer_to_admin;
-DROP PROCEDURE IF EXISTS remove_viewer;
-DROP PROCEDURE IF EXISTS add_viewer;
-DROP PROCEDURE IF EXISTS remove_admin;
-DROP PROCEDURE IF EXISTS add_admin;
-DROP PROCEDURE IF EXISTS create_event;
 DROP PROCEDURE IF EXISTS create_calendar;
-DROP PROCEDURE IF EXISTS get_viewers;
-DROP PROCEDURE IF EXISTS get_admins;
-DROP PROCEDURE IF EXISTS get_calendar;
+DROP PROCEDURE IF EXISTS get_calendars_roles;
 DROP PROCEDURE IF EXISTS delete_user;
 DROP PROCEDURE IF EXISTS change_pwd;
 DROP PROCEDURE IF EXISTS create_user;
@@ -28,6 +14,7 @@ DROP TRIGGER IF EXISTS calendars_update;
 DROP TRIGGER IF EXISTS users_update;
 DROP TRIGGER IF EXISTS users_insert;
 
+DROP FUNCTION IF EXISTS sole_admin;
 DROP FUNCTION IF EXISTS calendar_exists;
 DROP FUNCTION IF EXISTS user_exists;
 DROP FUNCTION IF EXISTS authenticate_user;

@@ -1,6 +1,9 @@
 <?php
 
 /*
+TODO:
+close statements?
+
 Calendar:	bcal			ecal					jcal					ocal
 Admins:		bbourdan		eonattu					jrichels				ozidar
 							jrichels										bbourdan
@@ -47,8 +50,8 @@ $calendars = array(
 $calendar_ids = array();
 foreach ($calendars as $admin => $calendar_name) {
 	// create calendar
-	if ((!$stmt = $conn->prepare('CALL create_calendar(?, ?, @calendar_id)')) |
-		(!$stmt->bind_param('ss', $admin, $calendar_name)) |
+	if ((!$stmt = $conn->prepare('CALL create_calendar(?, ?, @error_20, @calendar_id)')) |
+		(!$stmt->bind_param('ss', $calendar_name, $admin)) |
 		(!$stmt->execute())
 	) {
 		die("error inserting calendar '$calendar_name' with admin $admin:\n($stmt->errno) $stmt->error\n");
@@ -133,6 +136,6 @@ foreach ($events as $calendar_name => $event_tuples) {
 	}
 }
 
-mysqli_close($conn);
+$conn->close();
 
 ?>

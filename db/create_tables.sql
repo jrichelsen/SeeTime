@@ -1,39 +1,49 @@
+/*
+THINGS I HATE ABOUT MYSQL 5.5
+no multiple trigger conditions
+no multiple triggers for the same condition
+delete triggers on referenced tables not activated on cascade deletes
+syntax errors are useless
+Swedish characters?
+
+TODO
+disallow insert for modified fields
+make sole_admin work
+*/
+
 USE ozidar;
 
 SET collation_connection = 'utf8_general_ci';
 ALTER DATABASE ozidar CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE users (
-	username VARCHAR(15) PRIMARY KEY, -- see triggers for regex
-	pwd_hash CHAR(32) NOT NULL,
-	salt CHAR(36) NOT NULL,
-	modified DATETIME NOT NULL
+	username VARCHAR(15) PRIMARY KEY, /* NO UPDATE */ -- see triggers for regex
+	pwd_hash CHAR(32) NOT NULL, -- see triggers for pwd (not pwd_hash) regex
+	salt CHAR(36) NOT NULL, /* NO UPDATE */
+	ts_modified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-ALTER TABLE users ADD date_modified TIMESTAMP;
 ALTER TABLE users CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE calendars (
-	calendar_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+	calendar_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, /* NO UPDATE */
 	calendar_name VARCHAR(127),
-	modified DATETIME NOT NULL
+	ts_modified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
-ALTER TABLE calendars ADD date_modified TIMESTAMP;
 ALTER TABLE calendars CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE members (
-	username VARCHAR(15),
-	calendar_id INT UNSIGNED,
+	username VARCHAR(15), /* NO UPDATE */
+	calendar_id INT UNSIGNED, /* NO UPDATE */
 	role ENUM('admin', 'viewer') NOT NULL,
-	modified DATETIME NOT NULL,
+	ts_modified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	PRIMARY KEY(username, calendar_id), -- each user can only have one role per calendar
-	FOREIGN KEY(username) REFERENCES users(username),
-	FOREIGN KEY(calendar_id) REFERENCES calendars(calendar_id)
+	FOREIGN KEY(username) REFERENCES users(username) ON DELETE CASCADE,
+	FOREIGN KEY(calendar_id) REFERENCES calendars(calendar_id) ON DELETE CASCADE
 );
-ALTER TABLE members ADD date_modified TIMESTAMP;
 ALTER TABLE members CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE events (
-	event_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT,
+	event_id INT UNSIGNED PRIMARY KEY AUTO_INCREMENT, /* NO UPDATE */
 	calendar_id INT UNSIGNED,
 	event_title VARCHAR(63) NOT NULL,
 	start_date DATETIME NOT NULL,
@@ -42,10 +52,9 @@ CREATE TABLE events (
 	priority ENUM('low', 'medium', 'high'),
 	repetition VARCHAR(5), -- see triggers for regex
 	alert VARCHAR(5), -- see triggers for regex
-	modified DATETIME,
+	ts_modified TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 	FOREIGN KEY(calendar_id) REFERENCES calendars(calendar_id)
 );
-ALTER TABLE events ADD date_modified TIMESTAMP;
 ALTER TABLE events CONVERT TO CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 DELIMITER $$
@@ -100,6 +109,13 @@ RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
 	RETURN(EXISTS(SELECT calendar_id FROM calendars WHERE calendar_id = in_calendar_id));
 END$$
 
+CREATE FUNCTION sole_admin (
+	in_username VARCHAR(15)
+)
+RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
+	RETURN FALSE;
+END$$
+
 CREATE TRIGGER users_insert BEFORE INSERT ON users FOR EACH ROW BEGIN
 	IF NOT username_regex(NEW.username) THEN
 		SIGNAL
@@ -142,15 +158,15 @@ CREATE TRIGGER members_update BEFORE UPDATE ON members FOR EACH ROW BEGIN
 	END IF;
 	IF (OLD.role = 'admin') AND (NEW.role <> 'admin') AND ('admin' NOT IN (SELECT role FROM members WHERE calendar_id = OLD.calendar_id AND username <> OLD.username)) THEN
 		SIGNAL
-			SQLSTATE '45038'
+			SQLSTATE '45021'
 			SET MESSAGE_TEXT = 'cannot remove sole admin of calendar';
 	END IF;
 END$$
 
-CREATE TRIGGER members_delete BEFORE DELETE ON members FOR EACH ROW BEGIN
+CREATE TRIGGER members_delete BEFORE DELETE ON members FOR EACH ROW BEGIN -- NOTE: not run on cascade delete for deleting member
 	IF (OLD.role = 'admin') AND ('admin' NOT IN (SELECT role FROM members WHERE calendar_id = OLD.calendar_id AND username <> OLD.username)) THEN
 		SIGNAL
-			SQLSTATE '45038'
+			SQLSTATE '45021'
 			SET MESSAGE_TEXT = 'cannot remove sole admin of calendar';
 	END IF;
 END$$
@@ -194,22 +210,22 @@ END$$
 CREATE PROCEDURE create_user (
 	IN in_username VARCHAR(15),
 	IN in_pwd VARCHAR(31),
-	OUT out_error_7 BOOLEAN,
 	OUT out_error_8 BOOLEAN,
-	OUT out_error_9 BOOLEAN
+	OUT out_error_9 BOOLEAN,
+	OUT out_error_10 BOOLEAN
 ) BEGIN
-	DECLARE EXIT HANDLER FOR SQLSTATE '45007' SET out_error_7 = TRUE;
-	DECLARE EXIT HANDLER FOR 1062 SET out_error_9 = TRUE;
-	SET out_error_7 = FALSE;
+	DECLARE EXIT HANDLER FOR SQLSTATE '45008' SET out_error_8 = TRUE;
+	DECLARE EXIT HANDLER FOR 1062 SET out_error_10 = TRUE;
 	SET out_error_8 = FALSE;
 	SET out_error_9 = FALSE;
+	SET out_error_10 = FALSE;
 	IF NOT pwd_regex(in_pwd) THEN
-		SET out_error_8 = TRUE;
+		SET out_error_9 = TRUE;
 		IF NOT username_regex(in_username) THEN
-			SET out_error_7 = TRUE;
+			SET out_error_8 = TRUE;
 		END IF;
 		IF user_exists(in_username) THEN
-			SET out_error_9 = TRUE;
+			SET out_error_10 = TRUE;
 		END IF;
 	ELSE
 		SET @my_salt = UUID();
@@ -230,26 +246,26 @@ CREATE PROCEDURE change_pwd (
 	IN in_username VARCHAR(15),
 	IN in_old_pwd VARCHAR(31),
 	IN in_new_pwd VARCHAR(31),
-	OUT out_error_7 BOOLEAN,
-	OUT out_error_15 BOOLEAN,
+	OUT out_error_8 BOOLEAN,
 	OUT out_error_16 BOOLEAN,
-	OUT out_error_17 BOOLEAN
+	OUT out_error_17 BOOLEAN,
+	OUT out_error_18 BOOLEAN
 ) BEGIN
-	SET out_error_7 = FALSE;
-	SET out_error_15 = FALSE;
+	SET out_error_8 = FALSE;
 	SET out_error_16 = FALSE;
 	SET out_error_17 = FALSE;
+	SET out_error_18 = FALSE;
 	SET @do_change = TRUE;
 	IF NOT username_regex(in_username) THEN
-		SET out_error_7 = TRUE;
+		SET out_error_8 = TRUE;
 		SET @do_change = FALSE;
 	END IF;
 	IF NOT pwd_regex(in_old_pwd) THEN
-		SET out_error_15 = TRUE;
+		SET out_error_16 = TRUE;
 		SET @do_change = FALSE;
 	END IF;
 	IF NOT pwd_regex(in_new_pwd) THEN
-		SET out_error_16 = TRUE;
+		SET out_error_17 = TRUE;
 		SET @do_change = FALSE;
 	END IF;
 	IF authenticate_user(in_username, in_old_pwd) THEN
@@ -259,246 +275,67 @@ CREATE PROCEDURE change_pwd (
 			WHERE username = in_username;
 		END IF;
 	ELSE
-		SET out_error_17 = TRUE;
+		SET out_error_18 = TRUE;
 	END IF;
 END$$
 
 CREATE PROCEDURE delete_user (
 	IN in_username VARCHAR(15),
-	OUT out_error_19 BOOLEAN
+	OUT out_error_20 BOOLEAN,
+	OUT out_error_21 BOOLEAN
 ) BEGIN
-	SET out_error_19 = FALSE;
+	DECLARE EXIT HANDLER FOR SQLSTATE '45021' SET out_error_21 = TRUE;
+	SET out_error_20 = FALSE;
+	SET out_error_21 = FALSE;
 	IF NOT user_exists(in_username) THEN
-		SET out_error_19 = TRUE;
+		SET out_error_20 = TRUE;
 	ELSE
 		DELETE FROM users
 		WHERE username = in_username;
 	END IF;
 END$$
 
-CREATE PROCEDURE get_calendar (
-	IN in_calendar_id INT UNSIGNED,
-	OUT out_error_26 BOOLEAN
+CREATE PROCEDURE get_calendars_roles (
+	IN in_username VARCHAR(15),
+	OUT out_error_20 BOOLEAN
 ) BEGIN 
-	SET out_error_26 = FALSE;
-	IF NOT calendar_exists(in_calendar_id) THEN
-		SET out_error_26 = TRUE;
+	SET out_error_20 = FALSE;
+	IF NOT user_exists(in_username) THEN
+		SET out_error_20 = TRUE;
 	ELSE
-		SELECT calendar_namename
-		FROM calendars
-		WHERE calendar_id = in_calendar_id;
-	END IF;
-END$$
-
-CREATE PROCEDURE get_admins (
-	IN in_calendar_id INT UNSIGNED,
-	OUT out_error_26 BOOLEAN
-) BEGIN 
-	SET out_error_26 = FALSE;
-	IF NOT calendar_exists(in_calendar_id) THEN
-		SET out_error_26 = TRUE;
-	ELSE
-		SELECT username
+		SELECT calendar_id, role
 		FROM members
-		WHERE
-			calendar_id = in_calendar_id AND
-			role = 'admin';
-	END IF;
-END$$
-
-CREATE PROCEDURE get_viewers (
-	IN in_calendar_id INT UNSIGNED,
-	OUT out_error_26 BOOLEAN
-) BEGIN 
-	SET out_error_26 = FALSE;
-	IF NOT calendar_exists(in_calendar_id) THEN
-		SET out_error_26 = TRUE;
-	ELSE
-		SELECT username
-		FROM members
-		WHERE
-			calendar_id = in_calendar_id AND
-			role = 'viewer';
+		WHERE username = in_username;
 	END IF;
 END$$
 
 CREATE PROCEDURE create_calendar (
-	IN in_username VARCHAR(15),
 	IN in_calendar_name VARCHAR(127),
+	IN in_username VARCHAR(15),
+	OUT out_error_20 BOOLEAN,
 	OUT out_calendar_id INT UNSIGNED
-) BEGIN 
-	INSERT INTO calendars (calendar_name)
-	VALUES (in_calendar_name);
+) BEGIN
+	SET out_error_20 = FALSE;
+	SET out_calendar_id = NULL;
+	IF NOT user_exists(in_username) THEN
+		SET out_error_20 = TRUE;
+	ELSE
+		INSERT INTO calendars (calendar_name)
+		VALUES (in_calendar_name);
 
-	SET out_calendar_id = LAST_INSERT_ID();
+		SET out_calendar_id = LAST_INSERT_ID();
 
-	INSERT INTO members (
-		username,
-		calendar_id,
-		role
-	)
-	VALUES (
-		in_username,
-		out_calendar_id,
-		'admin'
-	);
-END$$
-
-CREATE PROCEDURE create_event (
-	IN in_calendar_id INT UNSIGNED,
-	IN in_event_title VARCHAR(63),
-	IN in_start_date DATETIME,
-	IN in_duration INT UNSIGNED,
-	IN in_details VARCHAR(510),
-	IN in_priority ENUM('low', 'medium', 'high'),
-	IN in_repetition VARCHAR(5),
-	IN in_alert VARCHAR(5),
-	OUT out_event_id INT UNSIGNED
-) BEGIN 
-	INSERT INTO events (
-		calendar_id,
-		event_title,
-		start_date,
-		duration,
-		details,
-		priority,
-		repetition,
-		alert)
-	VALUES (
-		in_calendar_id,
-		in_event_title,
-		in_start_date,
-		in_duration,
-		in_details,
-		in_priority,
-		in_repetition,
-		in_alert
-	);
-
-	SET out_event_id = LAST_INSERT_ID();
-END$$
-
-CREATE PROCEDURE add_admin (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	INSERT INTO members (
-		username,
-		calendar_id,
-		role
-	)
-	VALUES (
-		in_username,
-		in_calendar_id,
-		'admin'
-	);
-END$$
-
-CREATE PROCEDURE remove_admin (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	DELETE FROM members
-	WHERE
-		username = in_username AND
-		calendar_id = in_calendar_id AND
-		role = 'admin';
-END$$
-
-CREATE PROCEDURE add_viewer (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	INSERT INTO members (
-		username,
-		calendar_id,
-		role
-	)
-	VALUES (
-		in_username,
-		in_calendar_id,
-		'viewer'
-	);
-END$$
-
-CREATE PROCEDURE remove_viewer (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	DELETE FROM members
-	WHERE
-		username = in_username AND
-		calendar_id = in_calendar_id AND
-		role = 'viewer';
-END$$
-
-CREATE PROCEDURE upgrade_viewer_to_admin (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	UPDATE members
-	SET role = 'admin'
-	WHERE
-		username = in_username AND
-		calendar_id = in_calendar_id AND
-		role = 'viewer';
-END$$
-
-CREATE PROCEDURE downgrade_admin_to_viewer (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	UPDATE members
-	SET role = 'viewer'
-	WHERE
-		username = in_username AND
-		calendar_id = in_calendar_id AND
-		role = 'admin';
-END$$
-
-CREATE PROCEDURE get_viewable_calendars (
-	IN in_username VARCHAR(15)
-) BEGIN 
-	SELECT calendar_id
-	FROM members
-	WHERE username = in_username;
-END$$
-
-CREATE PROCEDURE get_editable_calendars (
-	IN in_username VARCHAR(15)
-) BEGIN 
-	SELECT calendar_id
-	FROM members
-	WHERE
-		username = in_username AND
-		role = 'admin';
-END$$
-
-CREATE PROCEDURE get_role (
-	IN in_username VARCHAR(15),
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	SELECT role
-	FROM members
-	WHERE
-		username = in_username AND
-		calendar_id = in_calendar_id;
-END$$
-
-CREATE PROCEDURE get_events (
-	IN in_calendar_id INT UNSIGNED
-) BEGIN 
-	SELECT event_id
-	FROM calendars
-	WHERE calendar_id = in_calendar_id;
-END$$
-
-CREATE PROCEDURE describe_event (
-	IN in_event_id INT UNSIGNED
-) BEGIN 
-	SELECT *
-	FROM events
-	WHERE event_id = in_event_id;
+		INSERT INTO members (
+			username,
+			calendar_id,
+			role
+		)
+		VALUES (
+			in_username,
+			out_calendar_id,
+			'admin'
+		);
+	END IF;
 END$$
 
 DELIMITER ;

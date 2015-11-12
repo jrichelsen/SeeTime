@@ -13,7 +13,7 @@ make sole_admin work
 
 USE ozidar;
 
-SET collation_connection = 'utf8_general_ci';
+SET collation_connection := 'utf8_general_ci';
 ALTER DATABASE ozidar CHARACTER SET utf8 COLLATE utf8_general_ci;
 
 CREATE TABLE users (
@@ -63,28 +63,58 @@ CREATE FUNCTION username_regex (
 	in_username VARCHAR(15)
 )
 RETURNS BOOLEAN DETERMINISTIC BEGIN
-	RETURN(in_username REGEXP '^[[:alpha:]][[:alnum:]]{0,14}$');
+	RETURN in_username REGEXP '^[[:alpha:]][[:alnum:]]{0,14}$';
 END$$
 
 CREATE FUNCTION pwd_regex (
 	in_pwd VARCHAR(31)
 )
 RETURNS BOOLEAN DETERMINISTIC BEGIN
-	RETURN(in_pwd REGEXP '^[[:alnum:]]{8,31}$');
+	RETURN in_pwd REGEXP '^[[:alnum:]]{8,31}$';
 END$$
 
 CREATE FUNCTION repetition_regex (
 	in_repetition VARCHAR(5)
 )
 RETURNS BOOLEAN DETERMINISTIC BEGIN
-	RETURN(in_repetition REGEXP '^[[:digit:]]{1,4}[dwmy]$');
+	RETURN in_repetition REGEXP '^[[:digit:]]{1,4}[dwmy]$';
 END$$
 
 CREATE FUNCTION alert_regex (
 	in_alert VARCHAR(5)
 )
 RETURNS BOOLEAN DETERMINISTIC BEGIN
-	RETURN(in_alert REGEXP '^[[:digit:]]{1,4}[MHdwmy]$');
+	RETURN in_alert REGEXP '^[[:digit:]]{1,4}[MHdwmy]$';
+END$$
+
+CREATE FUNCTION token_exists (
+	in_token VARCHAR(15)
+)
+RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
+	RETURN(EXISTS(SELECT username FROM users WHERE username = in_token));
+END$$
+
+CREATE FUNCTION token_to_username (
+	in_token VARCHAR(15)
+)
+RETURNS VARCHAR(15) NOT DETERMINISTIC BEGIN
+	DECLARE return_username VARCHAR(15);
+	SET return_username := '';
+
+	SELECT username
+	INTO return_username
+    FROM users
+    WHERE username = in_token;
+
+	RETURN return_username;
+END$$
+
+CREATE FUNCTION token_username_match (
+	in_token VARCHAR(15),
+	in_username VARCHAR(15)
+)
+RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
+	RETURN token_to_username(in_token) = in_username;
 END$$
 
 CREATE FUNCTION authenticate_user (
@@ -92,21 +122,21 @@ CREATE FUNCTION authenticate_user (
 	in_pwd VARCHAR(31)
 )
 RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
-	RETURN(EXISTS(SELECT username FROM users WHERE username = in_username AND pwd_hash = MD5(CONCAT(in_pwd, salt))));
+	RETURN EXISTS(SELECT username FROM users WHERE username = in_username AND pwd_hash = MD5(CONCAT(in_pwd, salt)));
 END$$
 
 CREATE FUNCTION user_exists (
 	in_username VARCHAR(15)
 )
 RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
-	RETURN(EXISTS(SELECT username FROM users WHERE username = in_username));
+	RETURN EXISTS(SELECT username FROM users WHERE username = in_username);
 END$$
 
 CREATE FUNCTION calendar_exists (
 	in_calendar_id INT UNSIGNED
 )
 RETURNS BOOLEAN NOT DETERMINISTIC BEGIN
-	RETURN(EXISTS(SELECT calendar_id FROM calendars WHERE calendar_id = in_calendar_id));
+	RETURN EXISTS(SELECT calendar_id FROM calendars WHERE calendar_id = in_calendar_id);
 END$$
 
 CREATE FUNCTION sole_admin (
@@ -158,7 +188,7 @@ CREATE TRIGGER members_update BEFORE UPDATE ON members FOR EACH ROW BEGIN
 	END IF;
 	IF (OLD.role = 'admin') AND (NEW.role <> 'admin') AND ('admin' NOT IN (SELECT role FROM members WHERE calendar_id = OLD.calendar_id AND username <> OLD.username)) THEN
 		SIGNAL
-			SQLSTATE '45021'
+			SQLSTATE '45022'
 			SET MESSAGE_TEXT = 'cannot remove sole admin of calendar';
 	END IF;
 END$$
@@ -166,7 +196,7 @@ END$$
 CREATE TRIGGER members_delete BEFORE DELETE ON members FOR EACH ROW BEGIN -- NOTE: not run on cascade delete for deleting member
 	IF (OLD.role = 'admin') AND ('admin' NOT IN (SELECT role FROM members WHERE calendar_id = OLD.calendar_id AND username <> OLD.username)) THEN
 		SIGNAL
-			SQLSTATE '45021'
+			SQLSTATE '45022'
 			SET MESSAGE_TEXT = 'cannot remove sole admin of calendar';
 	END IF;
 END$$
@@ -214,27 +244,23 @@ CREATE PROCEDURE create_user (
 	OUT out_error_9 BOOLEAN,
 	OUT out_error_10 BOOLEAN
 ) BEGIN
-	DECLARE EXIT HANDLER FOR SQLSTATE '45008' SET out_error_8 = TRUE;
-	DECLARE EXIT HANDLER FOR 1062 SET out_error_10 = TRUE;
-	SET out_error_8 = FALSE;
-	SET out_error_9 = FALSE;
-	SET out_error_10 = FALSE;
+	DECLARE EXIT HANDLER FOR SQLSTATE '45008' SET out_error_8 := TRUE;
+	DECLARE EXIT HANDLER FOR 1062 SET out_error_10 := TRUE;
 	IF NOT pwd_regex(in_pwd) THEN
-		SET out_error_9 = TRUE;
+		SET out_error_9 := TRUE;
 		IF NOT username_regex(in_username) THEN
-			SET out_error_8 = TRUE;
+			SET out_error_8 := TRUE;
 		END IF;
 		IF user_exists(in_username) THEN
-			SET out_error_10 = TRUE;
+			SET out_error_10 := TRUE;
 		END IF;
 	ELSE
-		SET @my_salt = UUID();
+		SET @my_salt := UUID();
 		INSERT INTO users (
 			username,
 			pwd_hash,
 			salt
-		)
-		VALUES (
+		) VALUES (
 			in_username,
 			MD5(CONCAT(in_pwd, @my_salt)),
 			@my_salt
@@ -243,52 +269,43 @@ CREATE PROCEDURE create_user (
 END$$
 
 CREATE PROCEDURE change_pwd (
+	IN in_token VARCHAR(15),
 	IN in_username VARCHAR(15),
 	IN in_old_pwd VARCHAR(31),
 	IN in_new_pwd VARCHAR(31),
-	OUT out_error_8 BOOLEAN,
-	OUT out_error_16 BOOLEAN,
-	OUT out_error_17 BOOLEAN,
-	OUT out_error_18 BOOLEAN
+	OUT out_error_18 BOOLEAN,
+	OUT out_error_19 BOOLEAN,
+	OUT out_error_20 BOOLEAN
 ) BEGIN
-	SET out_error_8 = FALSE;
-	SET out_error_16 = FALSE;
-	SET out_error_17 = FALSE;
-	SET out_error_18 = FALSE;
-	SET @do_change = TRUE;
-	IF NOT username_regex(in_username) THEN
-		SET out_error_8 = TRUE;
-		SET @do_change = FALSE;
-	END IF;
-	IF NOT pwd_regex(in_old_pwd) THEN
-		SET out_error_16 = TRUE;
-		SET @do_change = FALSE;
-	END IF;
+	SET @do_change := TRUE;
 	IF NOT pwd_regex(in_new_pwd) THEN
-		SET out_error_17 = TRUE;
-		SET @do_change = FALSE;
+		SET out_error_18 := TRUE;
+		SET @do_change := FALSE;
 	END IF;
-	IF authenticate_user(in_username, in_old_pwd) THEN
-		IF @do_change THEN
+	IF NOT token_username_match(in_token, in_username) THEN
+		SET out_error_19 := TRUE;
+		SET @do_change := FALSE;
+	END IF;
+	IF @do_change THEN
+		IF NOT authenticate_user(in_username, in_old_pwd) THEN
+			SET out_error_20 := TRUE;
+		ELSE
 			UPDATE users
-			SET pwd_hash = MD5(CONCAT(in_new_pwd, salt))
+			SET pwd_hash := MD5(CONCAT(in_new_pwd, salt))
 			WHERE username = in_username;
 		END IF;
-	ELSE
-		SET out_error_18 = TRUE;
 	END IF;
 END$$
 
 CREATE PROCEDURE delete_user (
+	IN in_token VARCHAR(15),
 	IN in_username VARCHAR(15),
-	OUT out_error_20 BOOLEAN,
-	OUT out_error_21 BOOLEAN
+	OUT out_error_19 BOOLEAN,
+	OUT out_error_22 BOOLEAN
 ) BEGIN
-	DECLARE EXIT HANDLER FOR SQLSTATE '45021' SET out_error_21 = TRUE;
-	SET out_error_20 = FALSE;
-	SET out_error_21 = FALSE;
-	IF NOT user_exists(in_username) THEN
-		SET out_error_20 = TRUE;
+	DECLARE EXIT HANDLER FOR SQLSTATE '45022' SET out_error_22 := TRUE;
+	IF NOT token_username_match(in_token, in_username) THEN
+		SET out_error_19 = TRUE;
 	ELSE
 		DELETE FROM users
 		WHERE username = in_username;
@@ -299,9 +316,9 @@ CREATE PROCEDURE get_calendars_roles (
 	IN in_username VARCHAR(15),
 	OUT out_error_20 BOOLEAN
 ) BEGIN 
-	SET out_error_20 = FALSE;
+	SET out_error_20 := FALSE;
 	IF NOT user_exists(in_username) THEN
-		SET out_error_20 = TRUE;
+		SET out_error_20 := TRUE;
 	ELSE
 		SELECT calendar_id, role
 		FROM members
@@ -315,24 +332,23 @@ CREATE PROCEDURE create_calendar (
 	OUT out_error_20 BOOLEAN,
 	OUT out_calendar_id INT UNSIGNED
 ) BEGIN
-	SET out_error_20 = FALSE;
+	SET out_error_20 := FALSE;
 	IF NOT user_exists(in_username) THEN
-		SET out_error_20 = TRUE;
+		SET out_error_20 := TRUE;
 	ELSE
 		INSERT INTO calendars (calendar_name)
 		VALUES (in_calendar_name);
 
-		SET out_calendar_id = LAST_INSERT_ID();
+		SET out_calendar_id := LAST_INSERT_ID();
 
 		INSERT INTO members (
 			username,
 			calendar_id,
 			role
-		)
-		VALUES (
+		) VALUES (
 			in_username,
 			out_calendar_id,
-		'	admin'
+			'admin'
 		);
 	END IF;
 END$$
@@ -345,8 +361,7 @@ CREATE PROCEDURE add_admin (
 		username,
 		calendar_id,
 		role
-	)
-	VALUES (
+	) VALUES (
 		in_username,
 		in_calendar_id,
 		'admin'
@@ -361,8 +376,7 @@ CREATE PROCEDURE add_viewer (
 		username,
 		calendar_id,
 		role
-	)
-	VALUES (
+	) VALUES (
 		in_username,
 		in_calendar_id,
 		'viewer'
@@ -388,8 +402,8 @@ CREATE PROCEDURE create_event (
 		details,
 		priority,
 		repetition,
-		alert)
-	VALUES (
+		alert
+	) VALUES (
 		in_calendar_id,
 		in_event_title,
 		in_start_date,
@@ -400,7 +414,7 @@ CREATE PROCEDURE create_event (
 		in_alert
 	);
 
-	SET out_event_id = LAST_INSERT_ID();
+	SET out_event_id := LAST_INSERT_ID();
 END$$
 
 DELIMITER ;

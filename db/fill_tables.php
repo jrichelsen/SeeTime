@@ -13,6 +13,7 @@ Events:		flare nostrils	office hours 1			software engineering	office hours
 
 TODO:
 * investigate closing prepared statements
+* check error outputs from procedures
 */
 
 // connect to database
@@ -31,7 +32,7 @@ $users = array(
 	'ozidar' => 'opwd12345678'
 );
 foreach ($users as $username => $pwd) {
-	if ((!$stmt = $conn->prepare('CALL create_user(?, ?, @error_7, @error_8, @error_9)')) |
+	if ((!$stmt = $conn->prepare('CALL create_user(?, ?, @error_8, @error_9, @error_10)')) |
 		(!$stmt->bind_param('ss', $username, $pwd)) |
 		(!$stmt->execute())
 	) {

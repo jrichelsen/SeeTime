@@ -23,6 +23,7 @@ $conn = new mysqli(
 	'jon',
 	'ozidar'
 );
+$conn->query("SET SESSION sql_mode = 'strict_all_tables'");
 
 // create users
 $users = array(
@@ -34,7 +35,8 @@ $users = array(
 foreach ($users as $username => $pwd) {
 	if ((!$stmt = $conn->prepare('CALL create_user(?, ?, @error_8, @error_9, @error_10)')) |
 		(!$stmt->bind_param('ss', $username, $pwd)) |
-		(!$stmt->execute())
+		(!$stmt->execute()) |
+		(!$stmt->close())
 	) {
 		die("error inserting user $username:\n($stmt->errno) $stmt->error\n");
 	}
@@ -42,17 +44,20 @@ foreach ($users as $username => $pwd) {
 
 // create calendars
 $calendars = array(
-	'bbourdan' => 'bcal',
-	'eonattu' => 'ecal',
-	'jrichels' => 'jcal',
-	'ozidar' => 'ocal'
+	'bcal' => array('00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001', 'bbourdan'),
+	'ecal' => array('00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002', 'eonattu'),
+	'jcal' => array('00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003', 'jrichels'),
+	'ocal' => array('00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004', 'ozidar')
 );
 $calendar_ids = array();
-foreach ($calendars as $admin => $calendar_name) {
+foreach ($calendars as $calendar_name => $calendar_info) {
 	// create calendar
-	if ((!$stmt = $conn->prepare('CALL create_calendar(?, ?, @error_13, @calendar_id)')) |
-		(!$stmt->bind_param('ss', $admin, $calendar_name)) |
-		(!$stmt->execute())
+	$calendar_id = $calendar_info[0];
+	$admin = $calendar_info[1];
+	if ((!$stmt = $conn->prepare('CALL create_calendar(?, ?, ?, @error_28, @error_18, @error_29, @error_30, @calendar_id)')) |
+		(!$stmt->bind_param('sss', $admin, $calendar_id, $calendar_name)) |
+		(!$stmt->execute()) |
+		(!$stmt->close())
 	) {
 		die("error inserting calendar '$calendar_name' with admin $admin:\n($stmt->errno) $stmt->error\n");
 	}
@@ -73,10 +78,13 @@ $other_admins = array(
 	'ocal' => array('bbourdan')
 );
 foreach ($other_admins as $calendar_name => $admins) {
+	$original_admin = $calendars[$calendar_name][1];
+	$calendar_id = $calendars[$calendar_name][0];
 	foreach ($admins as $admin) {
-		if ((!$stmt = $conn->prepare('CALL add_admin(?, ?)')) |
-			(!$stmt->bind_param('si', $admin, $calendar_ids[$calendar_name])) |
-			(!$stmt->execute())
+		if ((!$stmt = $conn->prepare("CALL add_member(?, ?, ?, 'admin', @error_28, @error_18, @error_39, @error_40)")) |
+			(!$stmt->bind_param('sss', $original_admin, $admin, $calendar_id)) |
+			(!$stmt->execute()) |
+			(!$stmt->close())
 		) {
 			die("error adding user $admin as admin of calendar '$calendar_name':\n($stmt->errno) $stmt->error\n");
 		}
@@ -91,10 +99,13 @@ $other_viewers = array(
 	'ocal' => array('jrichels')
 );
 foreach ($other_viewers as $calendar_name => $viewers) {
+	$original_admin = $calendars[$calendar_name][1];
+	$calendar_id = $calendars[$calendar_name][0];
 	foreach ($viewers as $viewer) {
-		if ((!$stmt = $conn->prepare('CALL add_viewer(?, ?)')) |
-			(!$stmt->bind_param('si', $viewer, $calendar_ids[$calendar_name])) |
-			(!$stmt->execute())
+		if ((!$stmt = $conn->prepare("CALL add_member(?, ?, ?, 'viewer', @error_28, @error_18, @error_39, @error_40)")) |
+			(!$stmt->bind_param('sss', $original_admin, $viewer, $calendar_id)) |
+			(!$stmt->execute()) |
+			(!$stmt->close())
 		) {
 			die("error adding user $viewer as viewer of calendar '$calendar_name':\n($stmt->errno) $stmt->error\n");
 		}
@@ -104,34 +115,35 @@ foreach ($other_viewers as $calendar_name => $viewers) {
 // create events
 $events = array(
 	'bcal' => array(
-		array('flare nostrils', '2015-12-15 12:00:00', 60, null, 'low', '1w', '30m'),
-		array('be annoying', '2015-12-15 12:00:00', 60, null, 'low', '1w', '30m')
+		array('bbourdan','00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000011', 'flare nostrils', '2015-12-15 12:00:00', 60, null, 'low', '1w', '30m'),
+		array('bbourdan', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000012', 'be annoying', '2015-12-15 12:00:00', 60, null, 'low', '1w', '30m')
 	),
 	'ecal' => array(
-		array('office hours 1', '2015-11-02 16:00:00', 180, 'TA office hours for Networks', 'high', '1w', '15m'),
-		array('office hours 2', '2015-11-03 15:00:00', 180, 'TA office hours for Networks', 'high', '1w', '15m'),
-		array('algorithms HW', '2015-11-03 19:00:00', 240, 'work on HW', 'high', null, '15m'),
-		array('databases proj hours', '2015-11-02 19:00:00', 180, 'work on Databases project', 'high', null, '15m')
+		array('eonattu', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000013', 'office hours 1', '2015-11-02 16:00:00', 180, 'TA office hours for Networks', 'high', '1w', '15m'),
+		array('eonattu', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014', 'office hours 2', '2015-11-03 15:00:00', 180, 'TA office hours for Networks', 'high', '1w', '15m'),
+		array('eonattu', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000015', 'algorithms HW', '2015-11-03 19:00:00', 240, 'work on HW', 'high', null, '15m'),
+		array('eonattu', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000016', 'databases proj hours', '2015-11-02 19:00:00', 180, 'work on Databases project', 'high', null, '15m')
 	),
 	'jcal' => array(
-		array('software engineering', '2015-11-07 09:25:00', 50, null, 'medium', '2d', '30m'),
-		array('beauty sleep', '2015-11-07 23:00:00', 360, 'maintain beauty', 'high', '1w', '30m'),
-		array('meeting with Tim', '2015-11-04 16:00:00', 30, 'event details', 'high', null, '30m'),
+		array('jrichels', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000017', 'software engineering', '2015-11-07 09:25:00', 50, null, 'medium', '2d', '30m'),
+		array('jrichels', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000018', 'beauty sleep', '2015-11-07 23:00:00', 360, 'maintain beauty', 'high', '1w', '30m'),
+		array('jrichels', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000019', 'meeting with Tim', '2015-11-04 16:00:00', 30, 'event details', 'high', null, '30m'),
 	),
 	'ocal' => array(
-		array('office hours', '2015-11-03 15:30:00', 120, 'host office hours for Computer Graphics', 'high', '1w', '15m'),
-		array('brush teeth', '2015-11-03 07:00:00', 3, 'scrub those pearly white teeth', 'high', '1d', '5m'),
-		array('listen to Edwin ramble', '2015-11-03 12:50:00', 50, 'usually not important information', 'low', '1d', '30m'),
-		array('watch football', '2015-11-02 12:00:00', 240, 'fantasy is IMPORTANT', 'low', '1w', '1H')
+		array('ozidar', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000020', 'office hours', '2015-11-03 15:30:00', 120, 'host office hours for Computer Graphics', 'high', '1w', '15m'),
+		array('ozidar', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000021', 'brush teeth', '2015-11-03 07:00:00', 3, 'scrub those pearly white teeth', 'high', '1d', '5m'),
+		array('ozidar', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000022', 'listen to Edwin ramble', '2015-11-03 12:50:00', 50, 'usually not important information', 'low', '1d', '30m'),
+		array('ozidar', '00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000023', 'watch football', '2015-11-02 12:00:00', 240, 'fantasy is IMPORTANT', 'low', '1w', '1H')
 	),
 );
 foreach ($events as $calendar_name => $event_tuples) {
 	foreach ($event_tuples as $event) {
-		if ((!$stmt = $conn->prepare("CALL create_event(?, ?, ?, ?, ?, ?, ?, ?, @event_id)")) |
-			(!$stmt->bind_param('ississss', $calendar_ids[$calendar_name], $event[0], $event[1], $event[2], $event[3], $event[4], $event[5], $event[6])) |
-			(!$stmt->execute())
+		if ((!$stmt = $conn->prepare("CALL create_event(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, @error_28, @error_18, @error_65, @error_66, @error_67, @error_68, @error_69, @error_70, @error_71, @error_72, @error_73, @event_id)")) |
+			(!$stmt->bind_param('sssssissss', $event[0], $event[1], $calendar_ids[$calendar_name], $event[2], $event[3], $event[4], $event[5], $event[6], $event[7], $event[8])) |
+			(!$stmt->execute()) |
+			(!$stmt->close())
 		) {
-			die("error inserting '$event[0]' into calendar '$calendar_name':\n($stmt->errno) $stmt->error\n");
+			die("error inserting event '$event[2]' into calendar '$calendar_name':\n($stmt->errno) $stmt->error\n");
 		}
 	}
 }
